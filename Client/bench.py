@@ -124,7 +124,7 @@ def run_benchmark(binary, network, private, threads, sets, expected=None):
 
     if None in benches or None in speeds:
         raise OpenBenchBadBenchException('[%s] Failed to Execute Benchmark' % (engine))
-
+    print('expected:', expected, 'benches:', benches[0])
     if expected and expected != benches[0]:
         raise OpenBenchBadBenchException('[%s] Wrong Bench: %d' % (engine, benches[0]))
 

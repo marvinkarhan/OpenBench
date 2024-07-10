@@ -1214,6 +1214,7 @@ def run_openbench_worker(client_args):
 
     args   = parse_arguments(client_args) # Merge client.py and worker.py args
     config = Configuration(args)          # Holds System info, args, and Workload info
+    print('config: ', config)
 
     setup_error      = '[Note] Unable to establish initial connection with the Server!'
     connection_error = '[Note] Unable to reach the server to request a workload!'
