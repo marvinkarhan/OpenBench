@@ -1,0 +1,42 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: openbench_db
+    environment:
+      MYSQL_DATABASE: openbench
+      MYSQL_USER: openbench
+      MYSQL_PASSWORD: openbench
+      MYSQL_ROOT_PASSWORD: rootpass
+    command: ["--default-authentication-plugin=mysql_native_password", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - db_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build: .
+    container_name: openbench_web
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MYSQL_DATABASE: openbench
+      MYSQL_USER: openbench
+      MYSQL_PASSWORD: openbench
+      MYSQL_HOST: db
+      MYSQL_PORT: "3306"
+      # For dev only
+      DJANGO_DEBUG: "1"
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+
+volumes:
+  db_data:
+

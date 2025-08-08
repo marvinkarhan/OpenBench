@@ -87,14 +87,21 @@ WSGI_APPLICATION = 'OpenSite.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
 
+# Allow configuring the database via environment variables for Docker
+DB_NAME = os.getenv('MYSQL_DATABASE', 'openbench')
+DB_USER = os.getenv('MYSQL_USER', 'root')
+DB_PASSWORD = os.getenv('MYSQL_PASSWORD', 'CHANGE_ME')
+DB_HOST = os.getenv('MYSQL_HOST', '127.0.0.1')
+DB_PORT = os.getenv('MYSQL_PORT', '3306')
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'openbench',
-        'USER': 'root',
-        'PASSWORD': 'CHANGE_ME',  # Replace with your MySQL root (or app) password
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
+        'NAME': DB_NAME,
+        'USER': DB_USER,
+        'PASSWORD': DB_PASSWORD,
+        'HOST': DB_HOST,
+        'PORT': DB_PORT,
     }
 }
 
