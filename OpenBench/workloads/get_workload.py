@@ -106,6 +106,10 @@ def filter_valid_workloads(request, machine):
         workloads = workloads.exclude(syzygy_adj='%d-MAN' % (K))
         workloads = workloads.exclude(syzygy_wdl='%d-MAN' % (K))
 
+    # Skip any workload using, or measuring, Time, for --noisy workers
+    if machine.info.get('noisy'):
+        workloads = [x for x in workloads if not OpenBench.utils.workload_uses_time_based_tc(x)]
+
     # Skip workloads that we have insufficient threads to play
     options = [x for x in workloads if valid_hardware_assignment(x, machine)]
 
@@ -179,6 +183,11 @@ def compute_resource_distribution(workloads, machine, has_focus):
 
 def workload_to_dictionary(test, result, machine):
 
+    # HACK: Remove this after a while, to avoid a complex DB migration
+    if test.scale_nps == 0:
+        test.scale_nps = OPENBENCH_CONFIG['engines'][test.base_engine]['nps']
+        test.save()
+
     workload = {}
 
     workload['result'] = {
@@ -196,6 +205,8 @@ def workload_to_dictionary(test, result, machine):
         'upload_pgns'   : test.upload_pgns,
         'genfens_args'  : test.genfens_args,
         'play_reverses' : test.play_reverses,
+        'scale_method'  : test.scale_method,
+        'scale_nps'     : test.scale_nps,
     }
 
     workload['test']['book'] = {
@@ -215,7 +226,6 @@ def workload_to_dictionary(test, result, machine):
         'network'      : test.dev_network,
         'netname'      : test.dev_netname,
         'time_control' : test.dev_time_control,
-        'nps'          : OPENBENCH_CONFIG['engines'][test.dev_engine]['nps'],
         'build'        : OPENBENCH_CONFIG['engines'][test.dev_engine]['build'],
         'private'      : OPENBENCH_CONFIG['engines'][test.dev_engine]['private'],
     }
@@ -231,7 +241,6 @@ def workload_to_dictionary(test, result, machine):
         'network'      : test.base_network,
         'netname'      : test.base_netname,
         'time_control' : test.base_time_control,
-        'nps'          : OPENBENCH_CONFIG['engines'][test.base_engine]['nps'],
         'build'        : OPENBENCH_CONFIG['engines'][test.base_engine]['build'],
         'private'      : OPENBENCH_CONFIG['engines'][test.base_engine]['private'],
     }
@@ -248,11 +257,13 @@ def workload_to_dictionary(test, result, machine):
 
         cutechess_cnt = workload['distribution']['cutechess-count']
         pairs_per_cnt = workload['distribution']['games-per-cutechess'] // 2
+        per_opening   = 2 if (test.test_mode == 'DATAGEN' and not test.play_reverses) else 1
 
-        if test.test_mode == 'DATAGEN' and not test.play_reverses:
-            test.book_index += cutechess_cnt * pairs_per_cnt * 2
-        else:
-            test.book_index += cutechess_cnt * pairs_per_cnt
+        test.book_index += cutechess_cnt * pairs_per_cnt * per_opening
+
+        if test.test_mode == 'DATAGEN':
+            workload['test']['genfens_seeds'] = [
+                random.randint(0, 2**31 - 1) for x in range(machine.info['concurrency'])]
 
         test.save()
 

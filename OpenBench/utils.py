@@ -36,7 +36,7 @@ from django.http import FileResponse
 from django.utils import timezone
 from wsgiref.util import FileWrapper
 
-from OpenSite.settings import MEDIA_ROOT
+from OpenSite.settings import MEDIA_ROOT, PROJECT_PATH
 
 from OpenBench.config import OPENBENCH_CONFIG
 from OpenBench.models import *
@@ -44,6 +44,7 @@ from OpenBench.stats import TrinomialSPRT, PentanomialSPRT
 
 
 import OpenBench.views
+import OpenBench.model_utils
 
 
 class TimeControl(object):
@@ -124,10 +125,21 @@ class TimeControl(object):
 
 
 
+def workload_uses_time_based_tc(workload):
+
+    dev_type  = TimeControl.control_type(workload.dev_time_control)
+    base_type = TimeControl.control_type(workload.base_time_control)
+
+    return  workload.upload_pgns == 'VERBOSE' \
+       or (dev_type  != TimeControl.FIXED_NODES and dev_type  != TimeControl.FIXED_DEPTH) \
+       or (base_type != TimeControl.FIXED_NODES and base_type != TimeControl.FIXED_DEPTH)
+
+
 def read_git_credentials(engine):
-    fname = 'Config/credentials.%s' % (engine.replace(' ', '').lower())
-    if os.path.exists(fname):
-        with open(fname) as fin:
+    fname = 'credentials.%s' % (engine.replace(' ', '').lower())
+    fpath = os.path.join(PROJECT_PATH, 'Config', fname)
+    if os.path.exists(fpath):
+        with open(fpath) as fin:
             return { 'Authorization' : 'token %s' % fin.readlines()[0].rstrip() }
 
 def path_join(*args):
@@ -329,21 +341,12 @@ def network_default(request, engine, network):
 
 def network_delete(request, engine, network):
 
-    # Don't allow deletion of important networks
-    if network.default or network.was_default:
-        error = 'You may not delete Default, or previous Default networks.'
-        return OpenBench.views.redirect(request, '/networks/%s/' % (engine), error=error)
+    message, success = OpenBench.model_utils.network_delete(network)
 
-    # Save information before deleting the Network Model
-    status = 'Deleted %s for %s' % (network.name, network.engine)
-    sha256 = network.sha256; network.delete()
-
-    # Only delete the actual file if no other engines use it
-    if not Network.objects.filter(sha256=sha256):
-        FileSystemStorage().delete(sha256)
-
-    # Report this, and refer to the Engine specific view
-    return OpenBench.views.redirect(request, '/networks/%s/' % (engine), status=status)
+    if success:
+        return OpenBench.views.redirect(request, '/networks/%s/' % (engine), status=message)
+    else:
+        return OpenBench.views.redirect(request, '/networks/%s/' % (engine), error=message)
 
 def network_download(request, engine, network):
 
