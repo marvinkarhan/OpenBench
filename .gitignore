@@ -9,6 +9,7 @@ Scripts/Engines/*
 Scripts/Networks/*
 
 Media/*
+wiki/*
 
 !Client/*.py
 !Client/cutechess-ob
